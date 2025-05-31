@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 900px;
+            height: 90vh;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 32px 64px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .avatar {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .header-info h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .header-info p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            color: white;
+        }
+
+        .message.assistant .message-avatar {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+
+        .message-content {
+            max-width: 80%;
+            padding: 16px 20px;
+            border-radius: 20px;
+            font-size: 15px;
+            line-height: 1.6;
+            word-wrap: break-word;
+            position: relative; /* For positioning copy button */
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border-bottom-right-radius: 6px;
+        }
+
+        .message.assistant .message-content {
+            background: #f8fafc;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 6px;
+            padding-bottom: 45px; /* Space for the overall copy button */
+        }
+        .message-text { /* Wrapper for main text content */
+            min-height: 1em; /* Ensure it has some height even if empty for structure */
+        }
+
+        .thinking-section {
+            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            margin-bottom: 12px; /* Margin only at bottom if followed by content */
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+         .message-content > .thinking-section:first-child { /* If thinking is the very first thing */
+            margin-top: -8px; /* Adjust if needed to pull it up slightly */
+            margin-bottom: 12px;
+        }
+
+
+        .thinking-header {
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #475569, #334155);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .thinking-header:hover {
+            background: linear-gradient(135deg, #334155, #1e293b);
+        }
+
+        .thinking-header i.fa-chevron-down { /* Target only the chevron */
+            transition: transform 0.3s ease;
+        }
+
+        .thinking-header.expanded i.fa-chevron-down {
+            transform: rotate(180deg);
+        }
+
+        .thinking-content {
+            padding: 16px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #475569;
+            white-space: pre-wrap;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease; /* Smooth transition for max-height and padding */
+        }
+        .thinking-content.expanded {
+            max-height: 400px; /* Or other desired max height */
+            overflow-y: auto;
+            padding: 16px; /* Ensure padding is set on expand */
+        }
+
+
+        .thinking-response-separator {
+            margin: 15px 0;
+            border: none;
+            border-top: 1px solid #e0e0e0; /* Lighter separator */
+        }
+
+        .message-content pre {
+            background: #1a1b26;
+            border-radius: 12px;
+            padding: 16px;
+            padding-top: 40px; /* Space for code header */
+            margin: 12px 0;
+            overflow-x: auto;
+            position: relative;
+            border: 1px solid #2d3748;
+        }
+
+        .message-content pre code {
+            color: #a9b1d6;
+            font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            background: none !important;
+            padding: 0 !important;
+            white-space: pre; /* Ensure pre-wrap from parent doesn't break code structure */
+        }
+
+        .code-header {
+            position: absolute;
+            top: 0;
+            left:0; /* Align to left */
+            right: 0; /* Stretch to right */
+            background: linear-gradient(135deg, #374151, #1f2937); /* Darker, less vibrant header */
+            color: #d1d5db; /* Lighter text for dark header */
+            padding: 8px 12px;
+            font-size: 12px;
+            border-top-left-radius: 11px; /* Match pre's border-radius */
+            border-top-right-radius: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between; /* Pushes language and button apart */
+        }
+        .code-header span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+
+        .copy-btn {
+            background: none;
+            border: none;
+            color: #9ca3af; /* Default color for copy icon in code header */
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px; /* Slightly larger icon */
+        }
+
+        .copy-btn:hover {
+            color: #e5e7eb; /* Lighter color on hover */
+        }
+
+        .overall-copy-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 12px;
+            background: rgba(0, 0, 0, 0.03); /* Very subtle background */
+            color: #6b7280; /* Muted icon color */
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            font-size: 13px;
+            opacity: 0.7;
+            transition: all 0.2s ease;
+        }
+
+        .overall-copy-btn:hover {
+            background: rgba(0, 0, 0, 0.08);
+            opacity: 1;
+            transform: scale(1.05);
+            color: #374151;
+        }
+
+
+        .message-content blockquote {
+            border-left: 4px solid #4f46e5;
+            background: linear-gradient(135deg, #f0f4ff, #e0e7ff);
+            margin: 12px 0;
+            padding: 16px 20px;
+            border-radius: 0 12px 12px 0;
+            font-style: italic;
+            color: #3730a3;
+        }
+
+        .message-content h1, .message-content h2, .message-content h3 {
+            color: #1e293b;
+            margin: 20px 0 12px 0;
+            font-weight: 700;
+        }
+        .message-content h1 { font-size: 1.5em; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+        .message-content h2 { font-size: 1.25em; color: #4f46e5; }
+        .message-content h3 { font-size: 1.1em; color: #7c3aed; }
+
+        .message-content ul, .message-content ol { margin: 12px 0; padding-left: 24px; }
+        .message-content li { margin: 8px 0; line-height: 1.6; }
+        .message-content strong { color: #1e293b; font-weight: 700; }
+        .message-content em { color: #4f46e5; font-style: italic; }
+        .message-content a { color: #4f46e5; text-decoration: none; border-bottom: 1px solid transparent; transition: all 0.2s ease; }
+        .message-content a:hover { border-bottom-color: #4f46e5; }
+
+        .message-content table { width: 100%; border-collapse: collapse; margin: 16px 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .message-content th, .message-content td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .message-content th { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; font-weight: 600; }
+        .message-content tr:hover { background: #f8fafc; }
+
+        /* Style for inline code generated by Marked.js (e.g. <code>) */
+        .message-content code:not(pre code) {
+            background: rgba(229, 231, 235, 0.7); /* Lighter gray, less yellow */
+            color: #374151; /* Darker text for contrast */
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+            font-size: 0.9em;
+            border: 1px solid rgba(209, 213, 219, 0.7);
+        }
+        
+        .file-preview { /* General style for file previews */
+            background: rgba(230, 239, 255, 0.7); /* Light blueish background */
+            border: 1px solid rgba(190, 210, 255, 0.9);
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #334155;
+        }
+        .input-file-preview { /* Specific for previews in input area */
+             margin: 0 0 10px 0; /* Resides in chat-input-container */
+        }
+        .message-file-preview { /* Specific for previews in a message bubble */
+            /* Inherits .file-preview, can add specific overrides if needed */
+        }
+
+
+        .file-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .chat-input-container {
+            padding: 16px 24px 24px 24px; /* Adjusted padding */
+            background: #ffffff; /* Solid white */
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column; /* To stack error messages and input wrapper */
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: flex-end; /* Align items to bottom for multi-line text area */
+            gap: 12px;
+            background: #f3f4f6; /* Slightly darker background for input */
+            border: 1px solid #d1d5db; /* Clearer border */
+            border-radius: 20px; /* More rounded */
+            padding: 10px 16px;
+            transition: all 0.2s ease;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        }
+
+        .chat-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 15px;
+            resize: none;
+            min-height: 24px; /* Initial height for one line */
+            max-height: 120px; /* Max 5-6 lines approx */
+            line-height: 1.6;
+            font-family: inherit;
+            color: #1f2937;
+        }
+        .chat-input::placeholder {
+            color: #6b7280;
+        }
+
+
+        .input-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center; /* Vertically align buttons if input grows */
+        }
+
+        .file-upload-btn, .send-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+
+        .file-upload-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        .file-upload-btn:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3); }
+
+        .send-btn {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+        }
+        .send-btn:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3); }
+        .send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: scale(1); box-shadow: none;}
+
+        .file-input { display: none; }
+
+        .typing-indicator {
+            display: none; /* Hidden by default */
+            align-items: center;
+            gap: 10px;
+            color: #6b7280;
+            font-style: italic;
+            animation: fadeInUp 0.3s ease-out;
+            padding: 8px 24px 12px; /* Padding around indicator */
+            background: rgba(255,255,255,0.8); /* Match chat messages background light */
+        }
+        .typing-indicator .message-avatar {
+            width: 32px; height: 32px; font-size: 14px;
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e1); color: #475569;
+        }
+        .typing-dots { display: flex; gap: 4px; }
+        .typing-dot { width: 6px; height: 6px; background: #6b7280; border-radius: 50%; animation: typing 1.4s infinite ease-in-out; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 60%, 100% { transform: scale(0.8); opacity: 0.5; } 30% { transform: scale(1); opacity: 1; } }
+
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c; /* Darker red for better contrast */
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 10px; /* Space below error, above input wrapper */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .error-message button { font-size: 1em; color: #b91c1c; }
+
+
+        @media (max-width: 768px) {
+            body { padding: 0; } /* Full bleed on mobile */
+            .chat-container { height: 100vh; border-radius: 0; max-width: 100%; padding:0; }
+            .chat-header { padding: 16px; border-radius:0; }
+            .avatar { width: 40px; height: 40px; font-size: 20px; }
+            .header-info h1 { font-size: 20px; }
+            .chat-messages { padding: 12px; }
+            .message-content { max-width: 85%; padding: 12px 16px; }
+            .message.assistant .message-content { padding-bottom: 40px; }
+            .chat-input-container { padding: 12px; }
+            .input-wrapper { padding: 8px 12px; }
+            .file-upload-btn, .send-btn { width: 36px; height: 36px; font-size: 15px; }
+            .typing-indicator { padding: 8px 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="avatar"><i class="fas fa-robot"></i></div>
+            <div class="header-info">
+                <h1>AI Assistant</h1>
+                <p>Powered by DeepSeek R1 • Chat, Upload, Discover</p>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message assistant">
+                <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                <div class="message-content">
+                    <div class="message-text">
+                        <p>Hello! I'm your AI assistant. I can help with questions, analyze documents, write code, and much more. You can also upload files (PDF, TXT, CSV, images, etc.) and I'll assist you.</p>
+                        <p>What can I help you with today?</p>
+                    </div>
+                    <button class="copy-btn overall-copy-btn" title="Copy response" onclick="const textToCopy = this.closest('.message-content').querySelector('.message-text').innerText; navigator.clipboard.writeText(textToCopy).then(() => { this.innerHTML = '<i class=\'fas fa-check\'></i>'; setTimeout(() => { this.innerHTML = '<i class=\'fas fa-clone\'></i>'; }, 2000); }).catch(err => console.error('Failed to copy text: ', err));"><i class="fas fa-clone"></i></button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="message-avatar"><i class="fas fa-robot"></i></div>
+            <div>
+                <span>AI is thinking</span>
+                <div class="typing-dots">
+                    <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-container" id="chatInputContainer">
+            <!-- File previews will be inserted here by JS -->
+            <div class="input-wrapper">
+                <textarea class="chat-input" id="chatInput" placeholder="Type your message... (Shift+Enter for new line)" rows="1"></textarea>
+                <div class="input-actions">
+                    <button class="file-upload-btn" id="fileUploadBtn" title="Upload file"><i class="fas fa-paperclip"></i></button>
+                    <input type="file" class="file-input" id="fileInput" multiple accept=".pdf,.txt,.csv,.json,.md,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.gif,.bmp,.webp">
+                    <button class="send-btn" id="sendBtn" title="Send message" disabled><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chatBotInstance; // Make instance accessible globally
+
+        class ChatBot {
+            constructor() {
+                this.messages = [];
+                this.currentFiles = []; // Stores { name, type, size, content (base64 or text) }
+                this.initializeElements();
+                this.attachEventListeners();
+                this.adjustTextareaHeight(); // Initial adjustment
+                this.sendBtn.disabled = true; // Ensure send button is disabled initially
+            }
+
+            initializeElements() {
+                this.chatMessages = document.getElementById('chatMessages');
+                this.chatInput = document.getElementById('chatInput');
+                this.sendBtn = document.getElementById('sendBtn');
+                this.fileUploadBtn = document.getElementById('fileUploadBtn');
+                this.fileInput = document.getElementById('fileInput');
+                this.typingIndicator = document.getElementById('typingIndicator');
+                this.chatInputContainer = document.getElementById('chatInputContainer'); // For placing errors and file previews
+            }
+
+            attachEventListeners() {
+                this.sendBtn.addEventListener('click', () => this.sendMessage());
+                this.chatInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (!this.sendBtn.disabled) this.sendMessage();
+                    }
+                });
+                this.chatInput.addEventListener('input', () => {
+                    this.adjustTextareaHeight();
+                    this.updateSendButtonState();
+                });
+                this.fileUploadBtn.addEventListener('click', () => this.fileInput.click());
+                this.fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+            }
+
+            updateSendButtonState() {
+                 this.sendBtn.disabled = this.chatInput.value.trim() === '' && this.currentFiles.length === 0;
+            }
+
+            adjustTextareaHeight() {
+                this.chatInput.style.height = 'auto'; // Reset height
+                const scrollHeight = this.chatInput.scrollHeight;
+                const maxHeight = parseInt(getComputedStyle(this.chatInput).maxHeight);
+                this.chatInput.style.height = Math.min(scrollHeight, maxHeight) + 'px';
+            }
+
+            async handleFileUpload(event) {
+                const files = Array.from(event.target.files);
+                let filesWereAdded = false;
+                
+                for (const file of files) {
+                    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                        this.showError(`File "${file.name}" is too large. Max 10MB.`);
+                        continue;
+                    }
+                    if (this.currentFiles.some(f => f.name === file.name)) {
+                         this.showError(`File "${file.name}" is already added.`);
+                         continue;
+                    }
+
+                    try {
+                        const fileContent = await this.readFileContent(file);
+                        this.currentFiles.push({ name: file.name, type: file.type, size: file.size, content: fileContent });
+                        this.addFilePreviewToInputArea(file);
+                        filesWereAdded = true;
+                    } catch (error) {
+                        this.showError(`Error reading "${file.name}": ${error.message}`);
+                    }
+                }
+                
+                if(filesWereAdded) this.updateSendButtonState();
+                event.target.value = ''; // Clear the file input
+            }
+
+            addFilePreviewToInputArea(file) {
+                const filePreviewDiv = document.createElement('div');
+                filePreviewDiv.className = 'file-preview input-file-preview';
+                filePreviewDiv.setAttribute('data-filename', file.name);
+                filePreviewDiv.innerHTML = `
+                    <div class="file-icon"><i class="fas ${this.getFileIcon(file.type)}"></i></div>
+                    <div style="flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <strong title="${file.name}">${file.name}</strong>
+                        <div style="font-size: 12px; opacity: 0.7;">${this.formatFileSize(file.size)}</div>
+                    </div>
+                    <button onclick="chatBotInstance.removeFilePreview(this)" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 16px; padding:0 5px; margin-left:auto; flex-shrink:0;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                this.chatInputContainer.insertBefore(filePreviewDiv, this.chatInputContainer.querySelector('.input-wrapper'));
+            }
+            
+            removeFilePreview(buttonElement) {
+                const filePreviewDiv = buttonElement.closest('.input-file-preview');
+                const fileName = filePreviewDiv.getAttribute('data-filename');
+                this.currentFiles = this.currentFiles.filter(f => f.name !== fileName);
+                filePreviewDiv.remove();
+                this.updateSendButtonState();
+            }
+
+            readFileContent(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result); // base64 for images/binary, text for text
+                    reader.onerror = () => reject(new Error('Failed to read file'));
+                    
+                    // Read as Data URL (base64) for images and common "binary" docs for potential upload.
+                    // Otherwise, read as text. API might expect different formats.
+                    if (file.type.startsWith('image/') || 
+                        ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+                         'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'].includes(file.type)
+                       ) {
+                        reader.readAsDataURL(file);
+                    } else {
+                        reader.readAsText(file);
+                    }
+                });
+            }
+
+            getFileIcon(fileType) {
+                if (fileType.startsWith('image/')) return 'fa-file-image'; // Corrected icon
+                if (fileType.includes('pdf')) return 'fa-file-pdf';
+                if (fileType.includes('text') || fileType.includes('csv') || fileType.includes('md')) return 'fa-file-alt';
+                if (fileType.includes('json')) return 'fa-file-code';
+                if (fileType.includes('excel') || fileType.includes('sheet')) return 'fa-file-excel';
+                if (fileType.includes('word') || fileType.includes('document')) return 'fa-file-word';
+                return 'fa-file';
+            }
+
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024; const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            async sendMessage() {
+                const messageText = this.chatInput.value.trim();
+                if (!messageText && this.currentFiles.length === 0) return;
+
+                this.sendBtn.disabled = true; // Disable during processing
+
+                const filesForThisMessage = [...this.currentFiles]; // Copy for this message
+                this.addMessage('user', messageText, filesForThisMessage);
+                
+                this.chatInput.value = '';
+                this.adjustTextareaHeight();
+                document.querySelectorAll('.input-file-preview').forEach(preview => preview.remove());
+                this.currentFiles = []; // Clear after associating with the message
+                // updateSendButtonState will be called after response or error.
+
+                this.showTypingIndicator();
+
+                try {
+                    // Prepare content for API: text + file info.
+                    // Actual file content (base64/binary) might need different handling depending on API.
+                    let apiMessageContent = messageText;
+                    if (filesForThisMessage.length > 0) {
+                        apiMessageContent += '\n\n--- Attached Files ---\n';
+                        filesForThisMessage.forEach(file => {
+                            apiMessageContent += `[File: ${file.name} (${file.type}, ${this.formatFileSize(file.size)})]\n`;
+                            // For the DeepSeek R1 text-based API, we describe the files.
+                            // Multimodal APIs would handle base64 image content differently.
+                            if (file.type.startsWith('image/')) {
+                                apiMessageContent += `(Note: This is an image. Its content is not displayed in this text log.)\n`;
+                            } else if (!file.content.startsWith('data:')) { // If it's text content
+                                const preview = file.content.substring(0, 200);
+                                apiMessageContent += `Content preview: ${preview}${file.content.length > 200 ? '...' : ''}\n`;
+                            }
+                        });
+                        apiMessageContent += '--- End of Attached Files ---\n';
+                    }
+
+                    const response = await this.callAIAPI(apiMessageContent, filesForThisMessage);
+                    this.addMessage('assistant', response);
+                } catch (error) {
+                    this.addMessage('assistant', {
+                        content: `Sorry, I encountered an error: ${error.message}. Please check your API token and network.`,
+                        thinking: `Error occurred: ${error.message}`
+                    });
+                    console.error('Error during AI call:', error);
+                } finally {
+                    this.hideTypingIndicator();
+                    this.updateSendButtonState(); // Re-evaluate send button state
+                    this.chatInput.focus();
+                }
+            }
+
+            async callAIAPI(message, files) { // files param can be used for multimodal APIs
+                const API_TOKEN = 'cpk_f629df681b184efb8b00e3f797653cf8.24e16014741852fb81520ee809ab50fd.r93od6K5m9oR5Ru65TVINoGskV5e1wwP'; // <<< IMPORTANT: Replace with your actual Chutes API token
+                
+                if (API_TOKEN === 'YOUR_API_TOKEN') {
+                    console.warn("API Token not configured. Please replace 'YOUR_API_TOKEN' in the script.");
+                    return {
+                        content: "It looks like the API token isn't configured in my JavaScript code. To connect to the AI, this token needs to be set up by the developer. For now, I can only echo your message and file information.",
+                        thinking: "The API token is currently a placeholder ('YOUR_API_TOKEN'). The developer needs to replace this with a valid Chutes API key (cpk_...). Without it, I cannot reach the DeepSeek R1 model."
+                    };
+                }
+
+                const apiPayload = {
+                    "model": "deepseek-ai/DeepSeek-R1-0528",
+                    "messages": [{"role": "user", "content": message}],
+                    "stream": false,
+                    "max_tokens": 2048,
+                    "temperature": 0.7
+                };
+                // Note: For true multimodal input with images, the 'messages' structure might need to change
+                // to include image URLs or base64 data in a specific format, e.g. for content array.
+                // The current DeepSeek R1 API via Chutes might be text-only.
+
+                const response = await fetch("https://llm.chutes.ai/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${API_TOKEN}`, "Content-Type": "application/json" },
+                    body: JSON.stringify(apiPayload)
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    throw new Error(`API request failed: ${response.status} ${response.statusText}. Details: ${errorBody}`);
+                }
+
+                const data = await response.json();
+                if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+                    return this.parseThinkingResponse(data.choices[0].message.content);
+                } else {
+                    throw new Error('Invalid API response structure from Chutes.');
+                }
+            }
+
+            parseThinkingResponse(response) {
+                const thinkingMatch = response.match(/<think>([\s\S]*?)<\/think>|<thinking>([\s\S]*?)<\/thinking>|\*\*Thinking:\*\*\s*([\s\S]*?)(?=\n\n\*\*Response:\*\*|\n\n|$)/i);
+                if (thinkingMatch) {
+                    const thinking = (thinkingMatch[1] || thinkingMatch[2] || thinkingMatch[3] || '').trim();
+                    let content = response.replace(thinkingMatch[0], '').trim();
+                    content = content.replace(/^\*\*Response:\*\*\s*/i, '').trim(); // Clean up if Response prefix remains
+                    return { content, thinking };
+                }
+                // Fallback heuristic (less reliable)
+                const lines = response.split('\n');
+                if (lines.length > 2) {
+                    const firstFewLines = lines.slice(0, 2).join('\n').toLowerCase();
+                    if (firstFewLines.includes('let me think') || firstFewLines.includes('i will first') || firstFewLines.includes('analyzing this')) {
+                        const paragraphs = response.split('\n\n');
+                        if (paragraphs.length > 1 && paragraphs[0].length < response.length * 0.4) { // If first para is much shorter
+                            return { content: paragraphs.slice(1).join('\n\n'), thinking: paragraphs[0].trim() };
+                        }
+                    }
+                }
+                return { content: response, thinking: null };
+            }
+
+            addMessage(role, data, filesForDisplay = []) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${role}`;
+                
+                const avatarIcon = role === 'user' ? 'fa-user' : 'fa-robot';
+                let thinkingSectionHTML = '', separatorHTML = '', mainContentForDisplay = '';
+                let hasContentToDisplay = false;
+
+                if (role === 'assistant') {
+                    const assistantData = (typeof data === 'object' && data !== null) ? data : { content: String(data), thinking: null };
+                    mainContentForDisplay = assistantData.content || ''; // Raw Markdown for assistant
+                    if (assistantData.thinking) {
+                        thinkingSectionHTML = this.createThinkingSection(assistantData.thinking);
+                        if (mainContentForDisplay) separatorHTML = '<hr class="thinking-response-separator">';
+                    }
+                    hasContentToDisplay = !!mainContentForDisplay || !!thinkingSectionHTML;
+                } else { // User message
+                    mainContentForDisplay = this.escapeHtml(String(data)).replace(/\n/g, '<br>');
+                    hasContentToDisplay = !!String(data).trim() || filesForDisplay.length > 0;
+                }
+                
+                if (!hasContentToDisplay) return; // Don't add empty messages
+
+                let filePreviewsHTML = filesForDisplay.map(file => `
+                    <div class="file-preview message-file-preview">
+                        <div class="file-icon"><i class="fas ${this.getFileIcon(file.type)}"></i></div>
+                        <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <strong title="${file.name}">${file.name}</strong>
+                            <div style="font-size: 12px; opacity: 0.7;">${this.formatFileSize(file.size)}</div>
+                        </div>
+                    </div>`).join('');
+
+                messageDiv.innerHTML = `
+                    <div class="message-avatar"><i class="fas ${avatarIcon}"></i></div>
+                    <div class="message-content">
+                        ${thinkingSectionHTML}
+                        ${separatorHTML}
+                        <div class="message-text">${mainContentForDisplay}</div>
+                        ${filePreviewsHTML}
+                        ${(role === 'assistant' && mainContentForDisplay) ? this.createOverallCopyButton() : ''}
+                    </div>`;
+
+                this.chatMessages.appendChild(messageDiv);
+                if (role === 'assistant' && mainContentForDisplay) this.enhanceMessageContent(messageDiv);
+                this.scrollToBottom();
+            }
+            
+            createOverallCopyButton() {
+                return `
+                    <button class="copy-btn overall-copy-btn" title="Copy response"
+                            onclick="
+                                const textElement = this.closest('.message-content').querySelector('.message-text');
+                                if (!textElement) return;
+                                const textToCopy = textElement.innerText;
+                                navigator.clipboard.writeText(textToCopy)
+                                    .then(() => {
+                                        this.innerHTML = '<i class=\\'fas fa-check\\'></i>';
+                                        setTimeout(() => { this.innerHTML = '<i class=\\'fas fa-clone\\'></i>'; }, 2000);
+                                    })
+                                    .catch(err => {
+                                        console.error('Failed to copy: ', err);
+                                        this.innerHTML = '<i class=\\'fas fa-times\\'></i>';
+                                        setTimeout(() => { this.innerHTML = '<i class=\\'fas fa-clone\\'></i>'; }, 2000);
+                                    });
+                            ">
+                        <i class="fas fa-clone"></i>
+                    </button>`;
+            }
+
+            createThinkingSection(thinking) {
+                return `
+                    <div class="thinking-section">
+                        <div class="thinking-header" onclick="this.classList.toggle('expanded'); this.nextElementSibling.classList.toggle('expanded');">
+                            <span><i class="fas fa-brain"></i> AI Thinking Process</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="thinking-content">${this.escapeHtml(thinking)}</div>
+                    </div>`;
+            }
+
+            enhanceMessageContent(messageDiv) {
+                const messageTextDiv = messageDiv.querySelector('.message-text');
+                if (!messageTextDiv || !messageTextDiv.innerHTML.trim()) return;
+
+                messageTextDiv.innerHTML = marked.parse(messageTextDiv.innerHTML, { gfm: true, breaks: true });
+
+                messageTextDiv.querySelectorAll('pre').forEach(pre => {
+                    const code = pre.querySelector('code');
+                    if (!code) return;
+                    const lang = this.detectLanguage(code.textContent);
+                    pre.classList.add(`language-${lang.toLowerCase()}`);
+                    if(code) code.classList.add(`language-${lang.toLowerCase()}`);
+
+                    const header = document.createElement('div');
+                    header.className = 'code-header';
+                    const langDisplay = lang.charAt(0).toUpperCase() + lang.slice(1).toLowerCase(); // Capitalize
+                    header.innerHTML = `
+                        <span><i class="fas fa-code"></i> ${langDisplay}</span>
+                        <button class="copy-btn" title="Copy code"><i class="fas fa-copy"></i></button>`;
+                    
+                    header.querySelector('.copy-btn').addEventListener('click', function() {
+                        navigator.clipboard.writeText(code.textContent)
+                            .then(() => {
+                                this.innerHTML='<i class="fas fa-check"></i>';
+                                setTimeout(() => { this.innerHTML='<i class="fas fa-copy"></i>'; }, 2000);
+                            })
+                            .catch(err => console.error("Code copy failed", err));
+                    });
+                    pre.insertBefore(header, pre.firstChild);
+                });
+                Prism.highlightAllUnder(messageTextDiv);
+            }
+
+            detectLanguage(code) {
+                const c = code.trim().toLowerCase().substring(0, 500);
+                if (/^\s*<!doctype\s+html\s*>/m.test(c) || /^\s*<html[\s>]/m.test(c)) return 'HTML';
+                if (/^\s*<\?xml/.test(c) || (c.includes('<') && c.includes('>'))) return 'XML';
+                if (/\b(function|const|let|var)\b.*\b=>\b|\b(function|class)\s*\w*\s*\(.*\)\s*\{/.test(c)) return 'JavaScript';
+                if (/\b(def|class)\s+\w+\s*\(.*\)\s*:/m.test(c) || /from\s+\w+\s+import\s+\w+/.test(c)) return 'Python';
+                if (/\b(public|private|protected)\s+(class|interface|enum|static)\b|\bSystem\.out\.print/.test(c)) return 'Java';
+                if (/#include\s*<|std::cout|\b(int|void)\s+main\s*\(/.test(c)) return 'C++';
+                if (/<\?php/.test(c)) return 'PHP';
+                if (/\b(SELECT|FROM|WHERE|UPDATE|INSERT\s+INTO|CREATE\s+TABLE)\b/i.test(c)) return 'SQL';
+                if (/^\s*[\w-]+\s*:\s*.*;\s*\}$/m.test(c) || /@media|@keyframes/.test(c)) return 'CSS'; // Improved CSS
+                if (/^#!\/(bash|sh|zsh)|echo\s+|fi\b|then\b/.test(c)) return 'Bash';
+                if (/\b(package|func|import)\s+"/.test(c) || /\b(go|defer|chan)\b/.test(c)) return 'Go';
+                if (/\b(fn|let\s+mut|impl|trait|mod)\b|::\w+/.test(c)) return 'Rust';
+                if (/^\{\s*".*"\s*:\s*.*\s*\}$/m.test(c) || /^\s*\[\s*\{/m.test(c)) return 'JSON'; // Improved JSON
+                if (/^\s*(-|\w+)\s*:/m.test(c) && !c.includes('{') && !c.includes(';')) return 'YAML';
+                if (/^#+\s|\*\*|\* |`[^`]+`/.test(c) && !(/<\w+/.test(c))) return 'Markdown';
+                return 'Text';
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            showTypingIndicator() { this.typingIndicator.style.display = 'flex'; this.scrollToBottom(); }
+            hideTypingIndicator() { this.typingIndicator.style.display = 'none'; }
+
+            showError(message) {
+                // Remove existing error messages first to prevent stacking
+                this.chatInputContainer.querySelectorAll('.error-message').forEach(e => e.remove());
+
+                const errorDivId = 'error-msg-' + Date.now();
+                const errorDiv = document.createElement('div');
+                errorDiv.id = errorDivId;
+                errorDiv.className = 'error-message';
+                errorDiv.innerHTML = `<span>${this.escapeHtml(message)}</span> <button onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; cursor:pointer; font-size:1.1em; padding:0 0 0 10px;">&times;</button>`;
+                this.chatInputContainer.insertBefore(errorDiv, this.chatInputContainer.firstChild);
+                setTimeout(() => { const el = document.getElementById(errorDivId); if (el) el.remove(); }, 7000);
+            }
+
+            scrollToBottom() { setTimeout(() => { this.chatMessages.scrollTop = this.chatMessages.scrollHeight; }, 50); }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            chatBotInstance = new ChatBot();
+        });
+    </script>
+</body>
+</html>
